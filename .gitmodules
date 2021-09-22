@@ -1,0 +1,4 @@
+[submodule "Plugins/RuntimeMeshComponent"]
+	path = Plugins/RuntimeMeshComponent
+	url = https://github.com/TriAxis-Games/RuntimeMeshComponent.git
+	branch = master
