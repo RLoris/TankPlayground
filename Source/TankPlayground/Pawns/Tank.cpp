@@ -11,12 +11,16 @@
 #include "../Projectiles/TankProjectile.h"
 #include "../Spawners/TankSpawner.h"
 #include "../CameraShakes/HitTankCameraShake.h"
+#include "../Controllers/TankPlayerController.h"
+#include "../Widgets/WidgetHUD.h"
+#include "../Widgets/WidgetBase.h"
 
 // Sets default values
 ATank::ATank()
 {
  	// Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
+	this->SetCanBeDamaged(true);
 	// Auto possess for test
 	// AutoPossessPlayer = EAutoReceiveInput::Player0;
 	// Box collision
@@ -84,7 +88,6 @@ ATank::ATank()
 void ATank::BeginPlay()
 {
 	Super::BeginPlay();
-	
 }
 
 void ATank::EndPlay(EEndPlayReason::Type EndPlayReason)
@@ -97,14 +100,23 @@ void ATank::EndPlay(EEndPlayReason::Type EndPlayReason)
 
 void ATank::PossessedBy(AController* NewController)
 {
-	if (Cast<APlayerController>(NewController))
+	if (ATankPlayerController* PlayerController = Cast<ATankPlayerController>(NewController))
 	{
+		// show HUD
+		PC = PlayerController;
+		PC->ShowHUD();
+		if (PC->WidgetHUD) 
+		{
+			IWidgetHUD::Execute_UpdateHealth(PC->WidgetHUD, this->Health);
+		}
+		
 		this->IsPlayer = true;
 		this->ForwardSpeed = 500;
 		this->TurnSpeed = 30;
 	}
 	else
 	{
+		PC = nullptr;
 		this->IsPlayer = false;
 		this->ForwardSpeed = 200;
 		GetWorld()->GetTimerManager().SetTimer(this->TurnAITimer, [this]() {
@@ -112,8 +124,21 @@ void ATank::PossessedBy(AController* NewController)
 		}, 1.0f, true, 1.0f);
 		GetWorld()->GetTimerManager().SetTimer(this->ShootAITimer, [this]() {
 			this->ShootPlayer();
-		}, 0.2f, true);
+		}, 0.20f, true);
 	}
+}
+
+float ATank::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	// deal damage
+	this->Health = FMath::Clamp<float>(Health - DamageAmount, 0, 100.0f);
+	// other tank hit
+	ATank* OtherTank = Cast<ATank>(DamageCauser);
+	if (OtherTank)
+	{
+		this->HandleHitFrom(OtherTank);
+	}
+	return 0.0f;
 }
 
 // Called every frame
@@ -160,26 +185,38 @@ void ATank::TurnRight(float Axis)
 
 void ATank::Shoot()
 {
-	FTransform Transform = this->ProjectileSpawn->GetComponentTransform();
-	FActorSpawnParameters Parameters;
-	Parameters.Owner = this;
-	Parameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	GetWorld()->SpawnActor<ATankProjectile>(ATankProjectile::StaticClass(), Transform, Parameters);
+	if ((GetWorld()->GetTimeSeconds() - this->LastShot) >= 0.2f) 
+	{
+		// spawn projectile
+		FTransform Transform = this->ProjectileSpawn->GetComponentTransform();
+		FActorSpawnParameters Parameters;
+		Parameters.Owner = this;
+		Parameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		GetWorld()->SpawnActor<ATankProjectile>(ATankProjectile::StaticClass(), Transform, Parameters);
+		// cannot shoot for 0.2s
+		this->bCanShoot = false;
+		this->LastShot = GetWorld()->GetTimeSeconds();
+	}
 }
 
-void ATank::HandleHit(ATank* OtherTank)
+void ATank::HandleHitFrom(ATank* OtherTank)
 {
 	if (OtherTank)
 	{
-		this->HitCount++;
 		if (IsPlayer)
 		{
+			if (PC->WidgetHUD)
+			{
+				IWidgetHUD::Execute_UpdateHealth(PC->WidgetHUD, this->Health);
+			}
 			// play camera shake
-			UGameplayStatics::GetPlayerController(this, 0)->ClientStartCameraShake(HitCameraShake, 1.0f);
+			PC->ClientStartCameraShake(HitCameraShake, 1.0f);
 		}
-		if (this->HitCount >= 3)
+		if (this->Health <= 0)
 		{
+			// increment score other tank
 			OtherTank->HandleScore();
+			// destroy current
 			if (ATankSpawner* Spawner = Cast<ATankSpawner>(GetOwner()))
 			{
 				Spawner->DestroyTank(this);

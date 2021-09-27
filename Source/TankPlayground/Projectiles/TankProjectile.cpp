@@ -1,9 +1,10 @@
 // Copyright RLoris 2021
 
+#include "TankProjectile.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SphereComponent.h"
 #include "../Pawns/Tank.h"
-#include "../Projectiles/TankProjectile.h"
+#include "Kismet/GameplayStatics.h"
 
 // Sets default values
 ATankProjectile::ATankProjectile()
@@ -42,13 +43,9 @@ void ATankProjectile::OnBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor
 {
 	if (OtherActor != GetOwner())
 	{
-		ATank* OtherTank = Cast<ATank>(OtherActor);
-		// tank hit ?
-		if (OtherTank && this->Tank)
-		{
-			OtherTank->HandleHit(this->Tank);
-		}
-
+		// apply damage to other actor
+		UGameplayStatics::ApplyDamage(OtherActor, 34.0f, this->Tank->GetController(), this->Tank, UDamageType::StaticClass());
+		
 		Destroy();
 	}
 }

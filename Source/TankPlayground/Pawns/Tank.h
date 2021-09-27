@@ -8,6 +8,9 @@
 #include "Templates/SubclassOf.h"
 #include "Tank.generated.h"
 
+// forward declarations
+class ATankPlayerController;
+
 UCLASS()
 class TANKPLAYGROUND_API ATank : public APawn
 {
@@ -22,35 +25,22 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(EEndPlayReason::Type EndPlayReason) override;
 	virtual void PossessedBy(AController* NewController) override;
+	// called when actor is damaged
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser);
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
-
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-
 public:
-	// Inputs handler
-	void MoveForward(float Axis);
-	void TurnRight(float Axis);
-	void Shoot();
-
-	// handle hit & score
-	void HandleHit(ATank* OtherTank);
-	void HandleScore();
-
-	// AI utils
-	void RandomTurnSpeed();
-	bool IsPlayerInRange();
-	void ShootPlayer();
-
 	USceneComponent* ProjectileSpawn;
 	// Velocity
 	FVector CurrentVelocity;
 	// Rotation
 	FRotator TargetRotation;
 	// score & live
-	int32 HitCount = 0;
+	UPROPERTY(BlueprintReadOnly)
+	float Health = 100.0f;
 	int32 HitScore = 0;
 	bool IsPlayer = false;
 	// speed
@@ -59,7 +49,24 @@ public:
 	// AI timers
 	FTimerHandle TurnAITimer;
 	FTimerHandle ShootAITimer;
-
+	// camera shake
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<UMatineeCameraShake> HitCameraShake;
+	// shoot
+	float LastShot = 0.0f;
+	bool bCanShoot = true;
+private:
+	// Inputs handler
+	void MoveForward(float Axis);
+	void TurnRight(float Axis);
+	void Shoot();
+	// AI utils
+	void RandomTurnSpeed();
+	bool IsPlayerInRange();
+	void ShootPlayer();
+	// handle hit & score
+	void HandleHitFrom(ATank* OtherTank);
+	void HandleScore();
+
+	ATankPlayerController* PC;
 };

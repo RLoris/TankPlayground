@@ -123,7 +123,7 @@ void ATankSpawner::DestroyTank(ATank* Tank)
 	{
 		if (Pawns.Num() <= 1 || Tank->IsPlayer)
 		{
-			GameMode->GameOver((Pawns.Num() > 0 && Pawns[0]->IsPlayer));
+			GameMode->EndGame((Pawns.Num() > 0 && Pawns[0]->IsPlayer));
 		}
 		Tank->Destroy();
 	}

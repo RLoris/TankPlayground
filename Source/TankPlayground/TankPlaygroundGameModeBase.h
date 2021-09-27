@@ -4,13 +4,21 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
-// #include "./Spawners/TankSpawner.h"
 #include "TankPlaygroundGameModeBase.generated.h"
 
+// forward declarations
 class ATankSpawner;
+class UTankPlaygroundGameInstance;
+
+UENUM(BlueprintType)
+enum class EEndGameType : uint8 {
+	NONE,
+	LOST,
+	WIN
+};
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRoundStartDelegate, int32, TankCount);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRoundEndDelegate, bool, Win);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRoundEndDelegate, EEndGameType, Win);
 
 /**
  * 
@@ -28,12 +36,22 @@ private:
 	void StartRound(int32 TankCount);
 	void EndRound(bool Win);
 public:
+	// setup defaults
+	ATankPlaygroundGameModeBase();
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
-	// called to setup the game
+	// called once to setup the game
 	void SetupGame(ATankSpawner* Spawner);
-	// called to end the game
-	void GameOver(bool Win);
+	// Called to start the game
+	UFUNCTION(BlueprintCallable, Category = "Round")
+	void StartGame();
+	// called to end the game properly
+	UFUNCTION(BlueprintCallable, Category = "Round")
+	void EndGame(bool Win);
+	// called to stop the current game
+	UFUNCTION(BlueprintCallable, Category = "Round")
+	void StopGame();
 
-	ATankSpawner* Spawner = nullptr;
+	ATankSpawner* Spawner;
+	UTankPlaygroundGameInstance* GameInstance;
 };
