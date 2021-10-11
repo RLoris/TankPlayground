@@ -1,8 +1,8 @@
 # TankPlayground
 
     Unreal engine C++ demo learning game project
-    
-<iframe width="560" height="315" src="https://www.youtube.com/embed/1XU064OlBPo?controls=0" title="TankPlayground C++" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+[Watch project state](https://youtu.be/DXxswKOiAN4)
 
 # Unreal Engine
 
