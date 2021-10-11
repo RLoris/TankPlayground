@@ -17,12 +17,14 @@ ATankPlaygroundGameModeBase::ATankPlaygroundGameModeBase()
 
 void ATankPlaygroundGameModeBase::StartRound(int32 Count)
 {
+	this->GameResult = EEndGameType::NONE;
 	this->OnRoundStart.Broadcast(Count);
 }
 
 void ATankPlaygroundGameModeBase::EndRound(bool Win)
 {
-	this->OnRoundEnd.Broadcast(Win ? EEndGameType::WIN : EEndGameType::LOST);
+	this->GameResult = Win ? EEndGameType::WIN : EEndGameType::LOST;
+	this->OnRoundEnd.Broadcast(this->GameResult);
 }
 
 void ATankPlaygroundGameModeBase::BeginPlay()
@@ -34,7 +36,8 @@ void ATankPlaygroundGameModeBase::BeginPlay()
 		// display main menu
 		UWidgetBase* MainMenuRef = nullptr;
 		static UClass* MainMenuClass = StaticLoadClass(UObject::StaticClass(), NULL, TEXT("WidgetBlueprintGeneratedClass'/Game/Widgets/W_MainMenu.W_MainMenu_C'"), nullptr, LOAD_None);
-		this->GameInstance->ShowWidget(UGameplayStatics::GetPlayerController(this, 0), MainMenuClass, MainMenuRef);
+		ATankPlayerController* PC = Cast<ATankPlayerController>(UGameplayStatics::GetPlayerController(this, 0));
+		PC->ShowWidget(MainMenuClass, MainMenuRef);
 	}	
 	else
 	{
@@ -52,14 +55,17 @@ void ATankPlaygroundGameModeBase::StartGame()
 	if (this->Spawner)
 	{
 		this->StartRound(this->Spawner->TankCount - 1);
-		// this->GameInstance->HideWidget(UGameplayStatics::GetPlayerController(this, 0));
 	}
 }
 
 void ATankPlaygroundGameModeBase::EndGame(bool Win)
 {
 	this->EndRound(Win);
-	this->GameInstance->RestartLevel();
+	ATankPlayerController* PC = Cast<ATankPlayerController>(UGameplayStatics::GetPlayerController(this, 0));
+	UWidgetBase* GameoverMenuRef = nullptr;
+	static UClass* GameoverMenuClass = StaticLoadClass(UObject::StaticClass(), NULL, TEXT("WidgetBlueprintGeneratedClass'/Game/Widgets/W_GameoverMenu.W_GameoverMenu_C'"), nullptr, LOAD_None);
+	PC->ShowWidget(GameoverMenuClass, GameoverMenuRef);
+	// this->GameInstance->RestartLevel();
 }
 
 void ATankPlaygroundGameModeBase::StopGame()

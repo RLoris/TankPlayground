@@ -41,8 +41,6 @@ ATank::ATank()
 	SpringArm->SetRelativeLocation(FVector(0, 0, 100));
 	// Attach camera to spring arm
 	Camera->SetupAttachment(SpringArm);
-	// Attach springarm to root
-	SpringArm->SetupAttachment(RootComponent);
 	// Tank body
 	UStaticMeshComponent* Body = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Body"));
 	Body->SetupAttachment(RootComponent);
@@ -62,6 +60,7 @@ ATank::ATank()
 	Turret->SetMaterial(0, TurretMat.Object);
 	Turret->SetRelativeLocation(FVector(0, 0, 50));
 	Turret->SetRelativeScale3D(FVector(0.25, 0.5, 1.33));
+	TurretMesh = Turret;
 	// Tank Canon
 	UStaticMeshComponent* Canon = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Canon"));
 	Canon->SetupAttachment(Turret);
@@ -76,10 +75,18 @@ ATank::ATank()
 	USphereComponent* SphereComponent = CreateDefaultSubobject<USphereComponent>(TEXT("ProjectileSpawn"));
 	this->ProjectileSpawn = SphereComponent;
 	SphereComponent->bHiddenInGame = false;
-	SphereComponent->SetSphereRadius(10);
-	SphereComponent->SetRelativeRotation(FRotator(15, 0, 0));
-	SphereComponent->SetupAttachment(Root);
-	SphereComponent->SetRelativeLocation(FVector(210, 0, 95));
+	SphereComponent->SetSphereRadius(50);
+	SphereComponent->SetRelativeRotation(FRotator(-90, 0, 0));
+	SphereComponent->SetupAttachment(Canon);
+	SphereComponent->SetWorldLocation(FVector(0, 0, -55));
+	SphereComponent->SetWorldScale3D(FVector(1, 1, 1));
+
+	// only yaw movement for camera
+	SpringArm->bInheritPitch = false;
+	SpringArm->bInheritRoll = false;
+	
+	// Attach springarm to turret to follow movement
+	SpringArm->SetupAttachment(Turret);
 
 	HitCameraShake = UHitTankCameraShake::StaticClass();
 }
@@ -153,12 +160,18 @@ void ATank::Tick(float DeltaTime)
 		this->TurnRight(1);
 	}
 
+	// pawn location
 	FVector NewLocation = GetActorLocation() + (CurrentVelocity * DeltaTime);
 	SetActorLocation(NewLocation);
+	// pawn rotation
 	FRotator NewRotation = GetActorRotation() + (TargetRotation * DeltaTime);
 	NewRotation.Roll = FMath::ClampAngle(NewRotation.Roll, -50, 50);
 	NewRotation.Pitch = FMath::ClampAngle(NewRotation.Pitch, -50, 50);
 	SetActorRotation(NewRotation);
+	// turret & canon rotation
+	FRotator NewTurretRotation = TurretMesh->GetRelativeRotation() + (TurretRotation * DeltaTime);
+	NewTurretRotation.Pitch = FMath::Clamp(NewTurretRotation.Pitch, -10.0f, 15.0f);
+	TurretMesh->SetRelativeRotation(NewTurretRotation);
 }
 
 // Called to bind functionality to input
@@ -168,6 +181,8 @@ void ATank::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	// Axis
 	PlayerInputComponent->BindAxis("MoveForward", this, &ATank::MoveForward);
 	PlayerInputComponent->BindAxis("TurnRight", this, &ATank::TurnRight);
+	PlayerInputComponent->BindAxis("LookUp", this, &ATank::LookUp);
+	PlayerInputComponent->BindAxis("LookRight", this, &ATank::LookRight);
 	// Action
 	PlayerInputComponent->BindAction("Shoot", EInputEvent::IE_Pressed, this, &ATank::Shoot);
 }
@@ -183,12 +198,23 @@ void ATank::TurnRight(float Axis)
 	TargetRotation.Yaw = FMath::Clamp(Axis, -1.0f, 1.0f) * this->TurnSpeed;
 }
 
+void ATank::LookUp(float Axis)
+{
+	TurretRotation.Pitch = FMath::Clamp(Axis, -1.0f, 1.0f) * 30;
+}
+
+void ATank::LookRight(float Axis)
+{
+	TurretRotation.Yaw = FMath::Clamp(Axis, -1.0f, 1.0f) * 40;
+}
+
 void ATank::Shoot()
 {
 	if ((GetWorld()->GetTimeSeconds() - this->LastShot) >= 0.2f) 
 	{
 		// spawn projectile
 		FTransform Transform = this->ProjectileSpawn->GetComponentTransform();
+		Transform.SetScale3D(FVector(1));
 		FActorSpawnParameters Parameters;
 		Parameters.Owner = this;
 		Parameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;

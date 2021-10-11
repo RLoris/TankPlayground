@@ -9,6 +9,7 @@
 // forward declaration
 class UTankPlaygroundGameInstance;
 class ATankPlaygroundGameModeBase;
+class ATankPlayerController;
 /**
  * 
  */
@@ -29,4 +30,6 @@ protected:
 	UTankPlaygroundGameInstance* GameInstance;
 	UPROPERTY(BlueprintReadOnly, Category = "Widget")
 	ATankPlaygroundGameModeBase* GameMode;
+	UPROPERTY(BlueprintReadOnly, Category = "Widget")
+	ATankPlayerController* PC;
 };

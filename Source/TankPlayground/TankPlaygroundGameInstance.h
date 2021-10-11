@@ -11,7 +11,7 @@
 
 // forward declaration
 class UWidgetsContainer;
-class UWidgetBase;
+
 /**
  * 
  */
@@ -22,12 +22,12 @@ class TANKPLAYGROUND_API UTankPlaygroundGameInstance : public UGameInstance
 public:
 	virtual void Shutdown() override;
 	virtual void Init() override;
+
 	UFUNCTION(BlueprintCallable, Category = "Widget")
 	void SetWidgetsContainerClass(TSubclassOf<UWidgetsContainer> WidgetClass);
 	UFUNCTION(BlueprintCallable, Category = "Widget")
-	bool ShowWidget(APlayerController* PC, TSubclassOf<UWidgetBase> WidgetClass, UWidgetBase*& WidgetRef);
-	UFUNCTION(BlueprintCallable, Category = "Widget")
-	bool HideWidget(APlayerController* PC);
+	TSubclassOf<UWidgetsContainer> GetWidgetsContainerClass();
+
 	UFUNCTION(BlueprintCallable, Category = "Game")
 	void QuitGame();
 	UFUNCTION(BlueprintCallable, Category = "Level")
@@ -37,9 +37,5 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Level")
 	void OpenLevelByRef(const TSoftObjectPtr<UWorld> Level);
 private:
-	// called to remove widgets and pointers on level change
-	void ClearWidgets();
-private:
-	TMap<APlayerController*, UWidgetsContainer*> WidgetPlayerContainer;
 	TSubclassOf<UWidgetsContainer> ContainerClass;
 };

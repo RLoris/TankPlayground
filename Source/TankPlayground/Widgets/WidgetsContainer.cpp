@@ -54,6 +54,10 @@ bool UWidgetsContainer::Display(TSubclassOf<UWidgetBase> Widget)
 		}
 		return true;
 	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Widget class could not be found in widget switcher"));
+	}
 	return false;
 }
 

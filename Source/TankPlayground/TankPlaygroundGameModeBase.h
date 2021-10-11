@@ -32,6 +32,8 @@ public:
 	FOnRoundStartDelegate OnRoundStart;
 	UPROPERTY()
 	FOnRoundEndDelegate OnRoundEnd;
+	UPROPERTY(BlueprintReadOnly)
+	EEndGameType GameResult;
 private:
 	void StartRound(int32 TankCount);
 	void EndRound(bool Win);

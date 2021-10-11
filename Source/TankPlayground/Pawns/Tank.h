@@ -38,6 +38,7 @@ public:
 	FVector CurrentVelocity;
 	// Rotation
 	FRotator TargetRotation;
+	FRotator TurretRotation;
 	// score & live
 	UPROPERTY(BlueprintReadOnly)
 	float Health = 100.0f;
@@ -59,6 +60,8 @@ private:
 	// Inputs handler
 	void MoveForward(float Axis);
 	void TurnRight(float Axis);
+	void LookUp(float Axis);
+	void LookRight(float Axis);
 	void Shoot();
 	// AI utils
 	void RandomTurnSpeed();
@@ -67,6 +70,8 @@ private:
 	// handle hit & score
 	void HandleHitFrom(ATank* OtherTank);
 	void HandleScore();
+
+	UStaticMeshComponent* TurretMesh;
 
 	ATankPlayerController* PC;
 };
