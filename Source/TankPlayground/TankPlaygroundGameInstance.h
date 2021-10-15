@@ -36,6 +36,7 @@ public:
 	void OpenLevel(FName LevelName);
 	UFUNCTION(BlueprintCallable, Category = "Level")
 	void OpenLevelByRef(const TSoftObjectPtr<UWorld> Level);
-private:
+protected:
+	UPROPERTY(EditAnywhere, Category = "Widget")
 	TSubclassOf<UWidgetsContainer> ContainerClass;
 };

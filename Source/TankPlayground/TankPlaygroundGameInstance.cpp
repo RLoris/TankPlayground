@@ -8,9 +8,8 @@
 void UTankPlaygroundGameInstance::Init()
 {
 	Super::Init();
-	// get default container widget class
-	UClass* WidgetContainerClass = StaticLoadClass(UWidgetsContainer::StaticClass(), NULL, TEXT("WidgetBlueprintGeneratedClass'/Game/Widgets/W_WidgetContainer.W_WidgetContainer_C'"), nullptr, LOAD_None);
-	this->SetWidgetsContainerClass(WidgetContainerClass);
+	// UClass* WidgetContainerClass = StaticLoadClass(UWidgetsContainer::StaticClass(), NULL, TEXT("WidgetBlueprintGeneratedClass'/Game/Widgets/W_WidgetContainer.W_WidgetContainer_C'"), nullptr, LOAD_None);
+	// this->SetWidgetsContainerClass(WidgetContainerClass);
 }
 
 void UTankPlaygroundGameInstance::SetWidgetsContainerClass(TSubclassOf<UWidgetsContainer> WidgetClass)

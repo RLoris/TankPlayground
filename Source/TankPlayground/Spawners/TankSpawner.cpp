@@ -1,9 +1,9 @@
 // Copyright RLoris 2021
 
+#include "TankSpawner.h"
 #include "AIController.h"
 #include "Kismet/GameplayStatics.h"
 #include "../TankPlaygroundGameModeBase.h"
-#include "TankSpawner.h"
 
 // Sets default values
 ATankSpawner::ATankSpawner()

@@ -2,7 +2,7 @@
 
     Unreal engine C++ demo learning game project
 
-[Watch project state](https://youtu.be/DXxswKOiAN4)
+[Watch project state](https://youtu.be/LrekRQ1gzXc)
 
 # Unreal Engine
 
@@ -18,6 +18,8 @@
  - GameMode setup default classes
  - Widget Blueprint & C++ communication
  - Opening level
+ - Handling sounds
+ - Using Timeline
 
 # Plugins
 

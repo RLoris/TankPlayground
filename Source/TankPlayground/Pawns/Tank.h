@@ -6,20 +6,25 @@
 #include "GameFramework/Pawn.h"
 #include "MatineeCameraShake.h"
 #include "Templates/SubclassOf.h"
+#include "Components/TimelineComponent.h"
 #include "Tank.generated.h"
 
 // forward declarations
 class ATankPlayerController;
+class UAudioComponent;
+class USpringArmComponent;
 
 UCLASS()
 class TANKPLAYGROUND_API ATank : public APawn
 {
 	GENERATED_BODY()
-
 public:
 	// Sets default values for this pawn's properties
 	ATank();
-
+	// Called every frame
+	virtual void Tick(float DeltaTime) override;
+	// Called to bind functionality to input
+	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -27,11 +32,25 @@ protected:
 	virtual void PossessedBy(AController* NewController) override;
 	// called when actor is damaged
 	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser);
-public:	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
-	// Called to bind functionality to input
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+private:
+	// axis handler
+	void MoveForward(float Axis);
+	void TurnRight(float Axis);
+	void LookUp(float Axis);
+	void LookRight(float Axis);
+	// action handler
+	void Shoot();
+	void View();
+	// AI utils
+	void RandomTurnSpeed();
+	bool IsPlayerInRange();
+	void ShootPlayer();
+	// handle hit & score
+	void HandleHitFrom(ATank* OtherTank);
+	void HandleScore();
+	// camera timeline
+	UFUNCTION()
+	void CameraTimelineProgress(float Value);
 public:
 	USceneComponent* ProjectileSpawn;
 	// Velocity
@@ -56,22 +75,22 @@ public:
 	// shoot
 	float LastShot = 0.0f;
 	bool bCanShoot = true;
+	// view
+	bool bAimView = false;
 private:
-	// Inputs handler
-	void MoveForward(float Axis);
-	void TurnRight(float Axis);
-	void LookUp(float Axis);
-	void LookRight(float Axis);
-	void Shoot();
-	// AI utils
-	void RandomTurnSpeed();
-	bool IsPlayerInRange();
-	void ShootPlayer();
-	// handle hit & score
-	void HandleHitFrom(ATank* OtherTank);
-	void HandleScore();
-
+	// turret
 	UStaticMeshComponent* TurretMesh;
-
+	UAudioComponent* DrivingAudio;
+	UAudioComponent* TurretAudio;
+	UAudioComponent* CanonAudio;
+	// controller
 	ATankPlayerController* PC;
+	// sounds
+	USoundBase* ShootSound;
+	USoundBase* HitSound;
+	USoundBase* ExplosionSound;
+	USoundBase* MovingSound;
+	// timeline
+	USpringArmComponent* SpringArm;
+	FTimeline CameraTimeline;
 };

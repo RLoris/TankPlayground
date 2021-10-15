@@ -14,6 +14,8 @@
 #include "../Controllers/TankPlayerController.h"
 #include "../Widgets/WidgetHUD.h"
 #include "../Widgets/WidgetBase.h"
+#include "Sound/SoundBase.h"
+#include "Components/AudioComponent.h"
 
 // Sets default values
 ATank::ATank()
@@ -30,17 +32,6 @@ ATank::ATank()
 	Root->SetSimulatePhysics(true);
 	Root->SetLinearDamping(0);
 	Root->SetCollisionProfileName(FName("Pawn"), false);
-	// Camera
-	UCameraComponent* Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
-	Camera->SetRelativeRotation(FRotator(-20, 0, 0));
-	// Spring Arm
-	USpringArmComponent* SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
-	SpringArm->bDoCollisionTest = false;
-	SpringArm->TargetArmLength = 800.f;
-	SpringArm->SocketOffset = FVector(0, 0, 200);
-	SpringArm->SetRelativeLocation(FVector(0, 0, 100));
-	// Attach camera to spring arm
-	Camera->SetupAttachment(SpringArm);
 	// Tank body
 	UStaticMeshComponent* Body = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Body"));
 	Body->SetupAttachment(RootComponent);
@@ -80,15 +71,58 @@ ATank::ATank()
 	SphereComponent->SetupAttachment(Canon);
 	SphereComponent->SetWorldLocation(FVector(0, 0, -55));
 	SphereComponent->SetWorldScale3D(FVector(1, 1, 1));
-
+	
+	// Camera third person
+	UCameraComponent* Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("TPCamera"));
+	Camera->SetRelativeRotation(FRotator(-20, 0, 0));
+	// Spring Arm
+	SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("TPSpringArm"));
 	// only yaw movement for camera
 	SpringArm->bInheritPitch = false;
 	SpringArm->bInheritRoll = false;
-	
+	SpringArm->bDoCollisionTest = false;
+	SpringArm->TargetArmLength = 800.f;
+	SpringArm->SocketOffset = FVector(0, 0, 200);
+	SpringArm->SetRelativeLocation(FVector(0, 0, 100));
+	// Attach camera to spring arm
+	Camera->SetupAttachment(SpringArm);
 	// Attach springarm to turret to follow movement
 	SpringArm->SetupAttachment(Turret);
 
+	// camera shake
 	HitCameraShake = UHitTankCameraShake::StaticClass();
+
+	// projectile sound
+	static ConstructorHelpers::FObjectFinder<USoundBase> ProjectileShootSound(TEXT("/Game/Sounds/S_TankProjectileShoot.S_TankProjectileShoot"));
+	ShootSound = ProjectileShootSound.Object;
+	static ConstructorHelpers::FObjectFinder<USoundBase> ProjectileHitSound(TEXT("/Game/Sounds/S_TankProjectileHit.S_TankProjectileHit"));
+	HitSound = ProjectileHitSound.Object;
+	static ConstructorHelpers::FObjectFinder<USoundBase> TankExplosionSound(TEXT("/Game/Sounds/S_TankExplosion.S_TankExplosion"));
+	ExplosionSound = TankExplosionSound.Object;
+	
+	static ConstructorHelpers::FObjectFinder<USoundBase> DrivingSound(TEXT("/Game/Sounds/S_TankDriving.S_TankDriving"));
+	DrivingAudio = CreateDefaultSubobject<UAudioComponent>(TEXT("S_TankDriving"));
+	DrivingAudio->SetSound(DrivingSound.Object);
+	DrivingAudio->SetAutoActivate(false);
+	DrivingAudio->SetupAttachment(Root);
+
+	static ConstructorHelpers::FObjectFinder<USoundBase> TurretSound(TEXT("/Game/Sounds/S_TurretRotation.S_TurretRotation"));
+	TurretAudio = CreateDefaultSubobject<UAudioComponent>(TEXT("S_TurretRotating"));
+	TurretAudio->SetSound(TurretSound.Object);
+	TurretAudio->SetAutoActivate(false);
+	TurretAudio->SetupAttachment(Root);
+
+	static ConstructorHelpers::FObjectFinder<USoundBase> CanonSound(TEXT("/Game/Sounds/S_CanonRotation.S_CanonRotation"));
+	CanonAudio = CreateDefaultSubobject<UAudioComponent>(TEXT("S_CanonRotating"));
+	CanonAudio->SetSound(CanonSound.Object);
+	CanonAudio->SetAutoActivate(false);
+	CanonAudio->SetupAttachment(Root);
+
+	// curve timeline for camera switch
+	static ConstructorHelpers::FObjectFinder<UCurveFloat> CameraCurve(TEXT("/Game/Curve/CameraCurve.CameraCurve"));
+	FOnTimelineFloat ProgressEvent;
+	ProgressEvent.BindDynamic(this, &ATank::CameraTimelineProgress);
+	CameraTimeline.AddInterpFloat(CameraCurve.Object, ProgressEvent);
 }
 
 // Called when the game starts or when spawned
@@ -152,12 +186,29 @@ float ATank::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, ACo
 void ATank::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	CameraTimeline.TickTimeline(DeltaTime);
 
 	// AI
 	if (!IsPlayer)
 	{
 		this->MoveForward(1);
 		this->TurnRight(1);
+	}
+
+	// playing moving sound
+	if (CurrentVelocity.IsZero())
+	{
+		if (DrivingAudio->IsPlaying())
+		{
+			DrivingAudio->Stop();
+		}
+	}
+	else
+	{
+		if (!DrivingAudio->IsPlaying())
+		{
+			DrivingAudio->Play();
+		}
 	}
 
 	// pawn location
@@ -185,8 +236,16 @@ void ATank::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	PlayerInputComponent->BindAxis("LookRight", this, &ATank::LookRight);
 	// Action
 	PlayerInputComponent->BindAction("Shoot", EInputEvent::IE_Pressed, this, &ATank::Shoot);
+	PlayerInputComponent->BindAction("View", EInputEvent::IE_Pressed, this, &ATank::View);
 }
 
+void ATank::CameraTimelineProgress(float Value)
+{
+	SpringArm->TargetArmLength = FMath::Lerp(800.f, 50.f, Value);
+	SpringArm->SocketOffset = FMath::Lerp(FVector(0, 0, 200), FVector(0, 0, 50), Value);
+	SpringArm->SetRelativeLocation(FMath::Lerp(FVector(0, 0, 100), FVector(0, 0, 50), Value));
+	SpringArm->SetRelativeRotation(FMath::Lerp(FRotator(0), FRotator(20, 0, 0), Value));
+}
 
 void ATank::MoveForward(float Axis)
 {
@@ -200,17 +259,45 @@ void ATank::TurnRight(float Axis)
 
 void ATank::LookUp(float Axis)
 {
+	if (Axis == 0)
+	{
+		if (CanonAudio->IsPlaying())
+		{
+			CanonAudio->Stop();
+		}
+	}
+	else
+	{
+		if (!CanonAudio->IsPlaying())
+		{
+			CanonAudio->Play();
+		}
+	}
 	TurretRotation.Pitch = FMath::Clamp(Axis, -1.0f, 1.0f) * 30;
 }
 
 void ATank::LookRight(float Axis)
 {
+	if (Axis == 0)
+	{
+		if (TurretAudio->IsPlaying())
+		{
+			TurretAudio->Stop();
+		}
+	}
+	else
+	{
+		if (!TurretAudio->IsPlaying())
+		{
+			TurretAudio->Play();
+		}
+	}
 	TurretRotation.Yaw = FMath::Clamp(Axis, -1.0f, 1.0f) * 40;
 }
 
 void ATank::Shoot()
 {
-	if ((GetWorld()->GetTimeSeconds() - this->LastShot) >= 0.2f) 
+	if ((GetWorld()->GetTimeSeconds() - this->LastShot) >= 0.5f) 
 	{
 		// spawn projectile
 		FTransform Transform = this->ProjectileSpawn->GetComponentTransform();
@@ -219,9 +306,27 @@ void ATank::Shoot()
 		Parameters.Owner = this;
 		Parameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 		GetWorld()->SpawnActor<ATankProjectile>(ATankProjectile::StaticClass(), Transform, Parameters);
-		// cannot shoot for 0.2s
+		// play shoot sound
+		UGameplayStatics::PlaySoundAtLocation(this, ShootSound, this->ProjectileSpawn->GetComponentLocation());
+		// save current time for shoot delay
 		this->bCanShoot = false;
 		this->LastShot = GetWorld()->GetTimeSeconds();
+	}
+}
+
+void ATank::View()
+{
+	if (!bAimView)
+	{
+		bAimView = true;
+		SpringArm->bInheritPitch = true;
+		CameraTimeline.Play();
+	}
+	else
+	{
+		bAimView = false;
+		SpringArm->bInheritPitch = false;
+		CameraTimeline.Reverse();
 	}
 }
 
@@ -229,6 +334,8 @@ void ATank::HandleHitFrom(ATank* OtherTank)
 {
 	if (OtherTank)
 	{
+		// play hit sound
+		UGameplayStatics::PlaySoundAtLocation(this, HitSound, GetActorLocation());
 		if (IsPlayer)
 		{
 			if (PC->WidgetHUD)
@@ -242,6 +349,8 @@ void ATank::HandleHitFrom(ATank* OtherTank)
 		{
 			// increment score other tank
 			OtherTank->HandleScore();
+			// play explosion sound
+			UGameplayStatics::PlaySoundAtLocation(this, ExplosionSound, GetActorLocation());
 			// destroy current
 			if (ATankSpawner* Spawner = Cast<ATankSpawner>(GetOwner()))
 			{
