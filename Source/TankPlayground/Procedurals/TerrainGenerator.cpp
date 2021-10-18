@@ -12,6 +12,8 @@ ATerrainGenerator::ATerrainGenerator()
 	FNG->SetupFastNoise(EFastNoise_NoiseType::WhiteNoise);
 	RuntimeMesh = CreateDefaultSubobject<URuntimeMeshComponentStatic>(TEXT("RuntimeMesh"));
 	RootComponent = RuntimeMesh;
+	RuntimeMesh->SetCollisionProfileName(FName("BlockAll"), false);
+	// RuntimeMesh->SetCollisionProfileName(FName("WorldStatic"), false);
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> WorldMat(TEXT("/Engine/EngineMaterials/WorldGridMaterial.WorldGridMaterial"));
 	Material = WorldMat.Object;
 }

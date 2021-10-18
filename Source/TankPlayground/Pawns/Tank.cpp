@@ -16,6 +16,12 @@
 #include "../Widgets/WidgetBase.h"
 #include "Sound/SoundBase.h"
 #include "Components/AudioComponent.h"
+#include "Components/DecalComponent.h"
+#include "Components/SplineComponent.h"
+#include "Components/SplineMeshComponent.h"
+#include "Materials/MaterialParameterCollection.h"
+#include "Materials/MaterialParameterCollectionInstance.h"
+#include "Components/TimelineComponent.h"
 
 // Sets default values
 ATank::ATank()
@@ -34,6 +40,7 @@ ATank::ATank()
 	Root->SetCollisionProfileName(FName("Pawn"), false);
 	// Tank body
 	UStaticMeshComponent* Body = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Body"));
+	Body->SetReceivesDecals(false);
 	Body->SetupAttachment(RootComponent);
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> Cube(TEXT("/Engine/BasicShapes/Cube.Cube"));
 	Body->SetStaticMesh(Cube.Object);
@@ -44,6 +51,7 @@ ATank::ATank()
 	// Tank Turret
 	UStaticMeshComponent* Turret = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Turret"));
 	Turret->SetupAttachment(Body);
+	Turret->SetReceivesDecals(false);
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> Sphere(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
 	Turret->SetStaticMesh(Sphere.Object);
 	// turret material
@@ -55,6 +63,7 @@ ATank::ATank()
 	// Tank Canon
 	UStaticMeshComponent* Canon = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Canon"));
 	Canon->SetupAttachment(Turret);
+	Canon->SetReceivesDecals(false);
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> Cylinder(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
 	Canon->SetStaticMesh(Cylinder.Object);
 	// Canon material
@@ -71,6 +80,7 @@ ATank::ATank()
 	SphereComponent->SetupAttachment(Canon);
 	SphereComponent->SetWorldLocation(FVector(0, 0, -55));
 	SphereComponent->SetWorldScale3D(FVector(1, 1, 1));
+	SphereComponent->SetCollisionProfileName(FName("NoCollision"), false);
 	
 	// Camera third person
 	UCameraComponent* Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("TPCamera"));
@@ -120,9 +130,41 @@ ATank::ATank()
 
 	// curve timeline for camera switch
 	static ConstructorHelpers::FObjectFinder<UCurveFloat> CameraCurve(TEXT("/Game/Curve/CameraCurve.CameraCurve"));
+	CameraTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("CameraTimeline"));
 	FOnTimelineFloat ProgressEvent;
 	ProgressEvent.BindDynamic(this, &ATank::CameraTimelineProgress);
-	CameraTimeline.AddInterpFloat(CameraCurve.Object, ProgressEvent);
+	CameraTimeline->AddInterpFloat(CameraCurve.Object, ProgressEvent);
+
+	// sphere for projectile path
+	ProjectileZoneMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ProjectileZoneMesh"));
+	ProjectileZoneMesh->SetCollisionProfileName(FName("NoCollision"), false);
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMesh(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+	ProjectileZoneMesh->SetRelativeScale3D(FVector(8));
+	ProjectileZoneMesh->SetStaticMesh(SphereMesh.Object);
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> SphereMat(TEXT("/Game/Materials/Target/M_TargetSphere.M_TargetSphere"));
+	ProjectileZoneMesh->SetMaterial(0, SphereMat.Object);
+	ProjectileZoneMesh->SetupAttachment(Root);
+	ProjectileZoneMesh->SetVisibility(false);
+	// decal
+	UDecalComponent* ProjectileZoneDecal = CreateDefaultSubobject<UDecalComponent>(TEXT("ProjectileZoneDecal"));
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> DecalMat(TEXT("/Game/Materials/Target/M_TargetDecal.M_TargetDecal"));
+	ProjectileZoneDecal->SetMaterial(0, DecalMat.Object);
+	ProjectileZoneDecal->SetupAttachment(ProjectileZoneMesh);
+	ProjectileZoneDecal->SetRelativeRotation(FRotator(-90, 0, 0));
+	ProjectileZoneDecal->SetRelativeScale3D(FVector(1, 0.2, 0.2));
+	ProjectileZoneDecal->SetVisibility(false);
+	// spline
+	ProjectileSpline = CreateDefaultSubobject<USplineComponent>(TEXT("ProjectileSpline"));
+	ProjectileSpline->SetupAttachment(Root);
+
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> SplineMesh(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
+	ProjectileSplineMesh = SplineMesh.Object;
+
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> SplineMat(TEXT("/Game/Materials/Target/M_TargetSpline.M_TargetSpline"));
+	ProjectileSplineMaterial = SplineMat.Object;
+
+	static ConstructorHelpers::FObjectFinder<UMaterialParameterCollection> ProjectileMaterialParameterCollection(TEXT("/Game/Materials/Target/MPC_Color.MPC_Color"));
+	ProjectileMPC = ProjectileMaterialParameterCollection.Object;
 }
 
 // Called when the game starts or when spawned
@@ -186,13 +228,19 @@ float ATank::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, ACo
 void ATank::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	CameraTimeline.TickTimeline(DeltaTime);
 
 	// AI
 	if (!IsPlayer)
 	{
 		this->MoveForward(1);
 		this->TurnRight(1);
+	}
+	else
+	{
+		if (!bAimView) 
+		{
+			PredictProjectilePath();
+		}
 	}
 
 	// playing moving sound
@@ -242,9 +290,106 @@ void ATank::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 void ATank::CameraTimelineProgress(float Value)
 {
 	SpringArm->TargetArmLength = FMath::Lerp(800.f, 50.f, Value);
-	SpringArm->SocketOffset = FMath::Lerp(FVector(0, 0, 200), FVector(0, 0, 50), Value);
+	SpringArm->SocketOffset = FMath::Lerp(FVector(0, 0, 200), FVector(0, 0, 75), Value);
 	SpringArm->SetRelativeLocation(FMath::Lerp(FVector(0, 0, 100), FVector(0, 0, 50), Value));
 	SpringArm->SetRelativeRotation(FMath::Lerp(FRotator(0), FRotator(20, 0, 0), Value));
+}
+
+void ATank::PredictProjectilePath()
+{
+	ClearProjectilePath();
+	FPredictProjectilePathParams Params;
+	Params.SimFrequency = 12;
+	Params.bTraceWithCollision = true;
+	Params.ActorsToIgnore.Add(this);
+	Params.StartLocation = ProjectileSpawn->GetComponentLocation();
+	Params.LaunchVelocity = ProjectileSpawn->GetForwardVector() * 2000.f;
+	Params.MaxSimTime = 5.0f;
+	// WorldStatic
+	Params.bTraceWithChannel = true;
+	Params.TraceChannel = ECC_WorldStatic;
+	// debug only
+	// Params.DrawDebugType = EDrawDebugTrace::Type::ForDuration;
+	// Params.DrawDebugTime = 1.0f;
+	FPredictProjectilePathResult Results;
+	if (UGameplayStatics::PredictProjectilePath(this, Params, Results))
+	{
+		// add spline points
+		for (int i = 0; i < Results.PathData.Num(); i++) 
+		{
+			ProjectileSpline->AddSplinePointAtIndex(Results.PathData[i].Location, i, ESplineCoordinateSpace::World);
+		}
+		ProjectileSpline->SetSplinePointType(Results.PathData.Num() - 1, ESplinePointType::CurveClamped);
+		ProjectileZoneMesh->SetVisibility(true, true);
+		ProjectileSpline->SetVisibility(true);
+		// create spline components at spline point
+		for (int i = 0; i < ProjectileSpline->GetNumberOfSplinePoints() - 8; i++)
+		{
+			if (i % 2 == 0) 
+			{
+				USplineMeshComponent* SplineMesh = NewObject<USplineMeshComponent>(ProjectileSpline);
+				SplineMesh->RegisterComponentWithWorld(GetWorld());
+				SplineMesh->SetMaterial(0, ProjectileSplineMaterial);
+				SplineMesh->SetCastShadow(false);
+				SplineMesh->SetMobility(EComponentMobility::Movable);
+				SplineMesh->AttachToComponent(ProjectileSpline, FAttachmentTransformRules::KeepWorldTransform);
+				SplineMesh->SetStaticMesh(ProjectileSplineMesh);
+				SplineMesh->SetForwardAxis(ESplineMeshAxis::Z);
+				SplineMesh->SetCollisionProfileName(FName("NoCollision"));
+				FVector StartTangent = ProjectileSpline->GetTangentAtSplinePoint(i, ESplineCoordinateSpace::World);
+				FVector EndTangent = ProjectileSpline->GetTangentAtSplinePoint(i + 1, ESplineCoordinateSpace::World);
+				SplineMesh->SetStartAndEnd(Results.PathData[i].Location, StartTangent, Results.PathData[i + 1].Location, EndTangent);
+				SplineMesh->SetStartScale(FVector2D(0.1));
+				SplineMesh->SetEndScale(FVector2D(0.1));
+				ProjectileSplineComponents.Push(SplineMesh);
+			}
+		}
+		FVector SmoothLocation = FMath::VInterpTo(ProjectileZoneMesh->GetComponentLocation(), Results.LastTraceDestination.Location, UGameplayStatics::GetWorldDeltaSeconds(this), 10);
+		ProjectileZoneMesh->SetWorldLocation(SmoothLocation, false, nullptr, ETeleportType::TeleportPhysics);
+		
+		// highlight zone
+		ATank* Other = Cast<ATank>(Results.HitResult.Actor);
+		if (Other) 
+		{
+			HighlightProjectileZone();
+		}
+		else
+		{
+			DeHighlightProjectileZone();
+		}
+	}
+	else
+	{
+		ProjectileZoneMesh->SetVisibility(false, true);
+		ProjectileSpline->SetVisibility(false);
+		DeHighlightProjectileZone();
+	}
+}
+
+void ATank::ClearProjectilePath()
+{
+	// clear spline
+	for (int i = 0; i < ProjectileSplineComponents.Num(); i++)
+	{
+		ProjectileSplineComponents[i]->UnregisterComponent();
+		ProjectileSplineComponents[i]->DestroyComponent();
+	}
+	ProjectileSplineComponents.Empty();
+	ProjectileSpline->ClearSplinePoints();
+}
+
+void ATank::HighlightProjectileZone()
+{
+	UMaterialParameterCollectionInstance* MPCI = GetWorld()->GetParameterCollectionInstance(ProjectileMPC);
+	MPCI->SetVectorParameterValue("TargetColor", FLinearColor::Green * 20);
+	MPCI->SetVectorParameterValue("SplineColor1", FLinearColor::Green * 20);
+}
+
+void ATank::DeHighlightProjectileZone()
+{
+	UMaterialParameterCollectionInstance* MPCI = GetWorld()->GetParameterCollectionInstance(ProjectileMPC);
+	MPCI->SetVectorParameterValue("TargetColor", FLinearColor::Blue * 20);
+	MPCI->SetVectorParameterValue("SplineColor1", FLinearColor::Blue * 20);
 }
 
 void ATank::MoveForward(float Axis)
@@ -309,7 +454,6 @@ void ATank::Shoot()
 		// play shoot sound
 		UGameplayStatics::PlaySoundAtLocation(this, ShootSound, this->ProjectileSpawn->GetComponentLocation());
 		// save current time for shoot delay
-		this->bCanShoot = false;
 		this->LastShot = GetWorld()->GetTimeSeconds();
 	}
 }
@@ -318,15 +462,18 @@ void ATank::View()
 {
 	if (!bAimView)
 	{
+		// go into aimview
 		bAimView = true;
+		ClearProjectilePath();
+		ProjectileZoneMesh->SetVisibility(false, true);
 		SpringArm->bInheritPitch = true;
-		CameraTimeline.Play();
+		CameraTimeline->Play();
 	}
 	else
 	{
 		bAimView = false;
 		SpringArm->bInheritPitch = false;
-		CameraTimeline.Reverse();
+		CameraTimeline->Reverse();
 	}
 }
 

@@ -26,7 +26,10 @@ void ATankPlayerController::SetupInputComponent()
 
 bool ATankPlayerController::ShowWidget(TSubclassOf<UWidgetBase> WidgetClass, UWidgetBase*& WidgetRef)
 {
-	static UTankPlaygroundGameInstance* GameInstance = Cast<UTankPlaygroundGameInstance>(GetGameInstance());
+	if (!GameInstance) 
+	{
+		GameInstance = Cast<UTankPlaygroundGameInstance>(GetGameInstance());
+	}
 	if (!GameInstance->GetWidgetsContainerClass())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Widgets container class not set in gameinstance"));
@@ -73,7 +76,7 @@ void ATankPlayerController::TogglePauseGame()
 
 void ATankPlayerController::ShowHUD()
 {
-	static UClass* HUDMenuClass = StaticLoadClass(UObject::StaticClass(), NULL, TEXT("WidgetBlueprintGeneratedClass'/Game/Widgets/W_HUDMenu.W_HUDMenu_C'"), nullptr, LOAD_None);
+	static UClass* HUDMenuClass = LoadClass<UObject>(nullptr, TEXT("WidgetBlueprintGeneratedClass'/Game/Widgets/W_HUDMenu.W_HUDMenu_C'"), nullptr, LOAD_None, nullptr);
 	if (HUDMenuClass->ImplementsInterface(UWidgetHUD::StaticClass()))
 	{
 		ShowWidget(HUDMenuClass, WidgetHUD);
@@ -86,7 +89,7 @@ void ATankPlayerController::ShowHUD()
 
 void ATankPlayerController::ShowPause()
 {
-	static UClass* PauseMenuClass = StaticLoadClass(UObject::StaticClass(), NULL, TEXT("WidgetBlueprintGeneratedClass'/Game/Widgets/W_PauseMenu.W_PauseMenu_C'"), nullptr, LOAD_None);
+	static UClass* PauseMenuClass = LoadClass<UObject>(nullptr, TEXT("WidgetBlueprintGeneratedClass'/Game/Widgets/W_PauseMenu.W_PauseMenu_C'"), nullptr, LOAD_None, nullptr);
 	UWidgetBase* PauseMenuRef = nullptr;
 	ShowWidget(PauseMenuClass, PauseMenuRef);
 }

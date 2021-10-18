@@ -8,7 +8,7 @@ public class TankPlayground : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "FastNoiseGenerator", "FastNoise", "RuntimeMeshComponent", "AIModule" });
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "FastNoiseGenerator", "FastNoise", "RuntimeMeshComponent", "AIModule", "Niagara" });
 
 		PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
 

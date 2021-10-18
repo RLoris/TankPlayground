@@ -10,6 +10,7 @@
 class UTankPlaygroundGameInstance;
 class UWidgetBase;
 class UWidgetsContainer;
+
 /**
  * 
  */
@@ -40,4 +41,5 @@ public:
 	UWidgetBase* WidgetHUD;
 private:
 	UWidgetsContainer* WidgetPlayerContainer;
+	UTankPlaygroundGameInstance* GameInstance;
 };

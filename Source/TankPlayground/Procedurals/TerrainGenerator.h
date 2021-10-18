@@ -40,5 +40,7 @@ public:
 	UMaterialInterface* Material;
 
 	UFastNoiseWrapper* FNG;
+
+	UPROPERTY(EditAnywhere)
 	URuntimeMeshComponentStatic* RuntimeMesh;
 };

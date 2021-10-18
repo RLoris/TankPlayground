@@ -9,7 +9,7 @@
 ATankSpawner::ATankSpawner()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bCanEverTick = false;
 	Zone = CreateDefaultSubobject<UBoxComponent>(TEXT("Zone"));
 	RootComponent = Zone;
 	Zone->bHiddenInGame = false;

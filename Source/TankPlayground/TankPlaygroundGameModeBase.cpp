@@ -35,7 +35,7 @@ void ATankPlaygroundGameModeBase::BeginPlay()
 	{
 		// display main menu
 		UWidgetBase* MainMenuRef = nullptr;
-		static UClass* MainMenuClass = StaticLoadClass(UObject::StaticClass(), NULL, TEXT("WidgetBlueprintGeneratedClass'/Game/Widgets/W_MainMenu.W_MainMenu_C'"), nullptr, LOAD_None);
+		static UClass* MainMenuClass = LoadClass<UObject>(nullptr, TEXT("WidgetBlueprintGeneratedClass'/Game/Widgets/W_MainMenu.W_MainMenu_C'"), nullptr, LOAD_None, nullptr);
 		ATankPlayerController* PC = Cast<ATankPlayerController>(UGameplayStatics::GetPlayerController(this, 0));
 		PC->ShowWidget(MainMenuClass, MainMenuRef);
 	}	
@@ -63,9 +63,8 @@ void ATankPlaygroundGameModeBase::EndGame(bool Win)
 	this->EndRound(Win);
 	ATankPlayerController* PC = Cast<ATankPlayerController>(UGameplayStatics::GetPlayerController(this, 0));
 	UWidgetBase* GameoverMenuRef = nullptr;
-	static UClass* GameoverMenuClass = StaticLoadClass(UObject::StaticClass(), NULL, TEXT("WidgetBlueprintGeneratedClass'/Game/Widgets/W_GameoverMenu.W_GameoverMenu_C'"), nullptr, LOAD_None);
+	static UClass* GameoverMenuClass = LoadClass<UObject>(nullptr, TEXT("WidgetBlueprintGeneratedClass'/Game/Widgets/W_GameoverMenu.W_GameoverMenu_C'"), nullptr, LOAD_None, nullptr);
 	PC->ShowWidget(GameoverMenuClass, GameoverMenuRef);
-	// this->GameInstance->RestartLevel();
 }
 
 void ATankPlaygroundGameModeBase::StopGame()

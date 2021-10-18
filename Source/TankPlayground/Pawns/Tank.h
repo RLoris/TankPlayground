@@ -13,8 +13,15 @@
 class ATankPlayerController;
 class UAudioComponent;
 class USpringArmComponent;
+class UStaticMeshComponent;
+class USplineComponent;
+class UStaticMesh;
+class USplineMeshComponent;
+class UMaterialInterface;
+class UMaterialParameterCollection;
+class UTimelineComponent;
 
-UCLASS()
+UCLASS(Blueprintable, BlueprintType)
 class TANKPLAYGROUND_API ATank : public APawn
 {
 	GENERATED_BODY()
@@ -51,8 +58,14 @@ private:
 	// camera timeline
 	UFUNCTION()
 	void CameraTimelineProgress(float Value);
+	// projectile path
+	void PredictProjectilePath();
+	void ClearProjectilePath();
+	UFUNCTION()
+	void HighlightProjectileZone();
+	UFUNCTION()
+	void DeHighlightProjectileZone();
 public:
-	USceneComponent* ProjectileSpawn;
 	// Velocity
 	FVector CurrentVelocity;
 	// Rotation
@@ -74,7 +87,6 @@ public:
 	TSubclassOf<UMatineeCameraShake> HitCameraShake;
 	// shoot
 	float LastShot = 0.0f;
-	bool bCanShoot = true;
 	// view
 	bool bAimView = false;
 private:
@@ -92,5 +104,13 @@ private:
 	USoundBase* MovingSound;
 	// timeline
 	USpringArmComponent* SpringArm;
-	FTimeline CameraTimeline;
+	UTimelineComponent* CameraTimeline;
+	// projectile
+	USceneComponent* ProjectileSpawn;
+	UStaticMeshComponent* ProjectileZoneMesh;
+	USplineComponent* ProjectileSpline;
+	UStaticMesh* ProjectileSplineMesh;
+	UMaterialInterface* ProjectileSplineMaterial;
+	TArray<USplineMeshComponent*> ProjectileSplineComponents;
+	UMaterialParameterCollection* ProjectileMPC;
 };

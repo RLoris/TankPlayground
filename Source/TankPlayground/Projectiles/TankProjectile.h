@@ -7,6 +7,10 @@
 #include "../Pawns/Tank.h"
 #include "TankProjectile.generated.h"
 
+// forward declarations
+class UProjectileMovementComponent;
+class UParticleSystem;
+
 UCLASS()
 class TANKPLAYGROUND_API ATankProjectile : public AActor
 {
@@ -24,8 +28,7 @@ protected:
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+private:
 	ATank* Tank;
-	FVector InitialVelocity;
-	FVector InitialLocation;
-	float InitialTime;
+	UProjectileMovementComponent* ProjectileMovement;
 };
